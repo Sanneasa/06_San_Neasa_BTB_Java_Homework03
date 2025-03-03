@@ -3,8 +3,6 @@ import org.nocrala.tools.texttablefmt.CellStyle;
 import org.nocrala.tools.texttablefmt.ShownBorders;
 import org.nocrala.tools.texttablefmt.Table;
 
-import javax.management.ValueExp;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,7 +25,10 @@ public class Display {
     public static String BLUE = "\\u001B[34m\n";
 
 
+    // method call to use in main run
     public static void show() {
+
+        // static data
         ArrayList<StaffMember> staffMembers = new ArrayList<>();
         staffMembers.add(new Volunteer("San Neasa", "PP", 400.0));
         staffMembers.add(new Volunteer("Kimlong", "BTB", 330.0));
@@ -44,7 +45,7 @@ public class Display {
                     insertEmployee(staffMembers);
                     break;
                 case "2":
-                    updateEmployee(staffMembers);
+                    updateStaffMember(staffMembers);
                     break;
                 case "3":
                     displayAll(staffMembers);
@@ -62,8 +63,8 @@ public class Display {
     }
 
 
+    // method table
     public static void tableMenu() {
-
         Table t = new Table(1, BorderStyle.UNICODE_BOX_DOUBLE_BORDER, ShownBorders.ALL);
         //t.setColumnWidth(0, 30, 30);
         t.addCell("STAFF MANAGEMENT SYSTEM", new CellStyle(CellStyle.HorizontalAlign.center));
@@ -78,6 +79,7 @@ public class Display {
     }
 
 
+    // method display all data
     public static void displayAll(ArrayList<StaffMember> staffMembers) {
         if (staffMembers == null || staffMembers.isEmpty()) {
             System.out.println(RED + "No staff members to display" + RESET);
@@ -136,46 +138,6 @@ public class Display {
 
     }
 
-    public static void updateEmployee(ArrayList<StaffMember> staffMembers) {
-        do {
-            System.out.println("Choose one column to update :");
-            System.out.print("1. Name  ");
-            System.out.print("2. Address  ");
-            System.out.print("3. Salary  ");
-            System.out.print("4. Bonus  ");
-            System.out.print("5. Hours  ");
-            System.out.print("6. Rate  ");
-            System.out.print("0. Cancel  \n");
-            System.out.print(" => Select Column Number :");
-            ch = scan.nextLine();
-            switch (ch) {
-                case "1":
-                    updateFiled(staffMembers, "name");
-                    break;
-                case "2":
-                    updateFiled(staffMembers, "address");
-                    break;
-                case "3":
-                    updateFiled(staffMembers, "salary");
-                    break;
-                case "4":
-                    updateFiled(staffMembers, "bonus");
-                    break;
-                case "5":
-                    updateFiled(staffMembers, "hour");
-                    break;
-                case "6":
-                    updateFiled(staffMembers, "rate");
-                    break;
-                case "0":
-                    System.out.println("Update cancelled.");
-                    return;
-                default:
-                    System.out.println(RED + "Invalid option! Please enter 0-6." + RESET);
-            }
-        } while (!ch.equals("0"));
-    }
-
     public static StaffMember searchById(ArrayList<StaffMember> staffMembers, int targetID, Class<?> targetType) {
         if (staffMembers == null || staffMembers.isEmpty()) {
             return null;
@@ -188,8 +150,148 @@ public class Display {
 
     }
 
+    // method update
+    public static void updateStaffMember(ArrayList<StaffMember> staffMembers){
+        System.out.println("=====* Update Employee *=====");
+        System.out.print("=> Enter or Search ID to update : ");
+        int targetId;
+        try {
+            targetId = Integer.parseInt(scan.nextLine().trim());
+        } catch (NumberFormatException e) {
+            System.out.println(RED + "Invalid ID! Please enter a valid integer." + RESET);
+            return;
+        }
+        StaffMember memberToUpdate = searchById(staffMembers, targetId, null);
+        if (memberToUpdate == null) {
+            System.out.println(RED + "No staff member found with ID: " + targetId + RESET);
+            return;
+        }
 
-    // Deleted
+        System.out.println("=====* Update Employee *=====");
+        displayStaffMember(memberToUpdate);
+        System.out.println("Choose one column to update:");
+        System.out.println("1. Name  2. Address  3. Salary 4. Hour  5. Rate  0. Cancel");
+        System.out.print("=> Select Column Number : ");
+        String choice = scan.nextLine().trim();
+        switch(choice){
+            case "1" :
+                updateField(memberToUpdate,"name","^[a-zA-Z\\\\s'-]{2,50}$",
+                        "Change Name To :",RED + "Name should contain only letters, spaces, hyphens, or apostrophes" + RESET,
+                        memberToUpdate::setName
+                );
+                break;
+            case "2":
+                updateField(memberToUpdate,"address","^[a-zA-Z\\\\s'-]{2,50}$",
+                        "Change Address To :",RED + "Address contains invalid characters" + RESET,
+                        memberToUpdate::setAddress);
+                break;
+            case "3": // Update Salary
+                if (memberToUpdate instanceof Volunteer || memberToUpdate instanceof SalariesEmployee) {
+                    updateField(memberToUpdate, "salary", "^(?:[2-9][0-9]{2,6}|1[0-9]{7})(?:\\.[0-9]{1,2})?$",
+                            "Change Salary To : ", RED + "Salary must be between $200 and $10,000,000" + RESET,
+                            value -> {
+                                double salary = Double.parseDouble(value);
+                                if (memberToUpdate instanceof Volunteer) ((Volunteer) memberToUpdate).setSalary(salary);
+                                else ((SalariesEmployee) memberToUpdate).setSalary(salary);
+                            });
+                } else {
+                    System.out.println(RED + "Salary update not applicable for this type." + RESET);
+                }
+                break;
+            case "4": // Update Hour (only for HourlySalaryEmployee)
+                if (memberToUpdate instanceof HourlySalaryEmployee) {
+                    updateField(memberToUpdate, "hour", "^(?:1[0-6][0-8]|[0-9]|[1-9][0-9])$",
+                            "Change Hour To : ", RED + "Hours must be between 0 and 168" + RESET,
+                            value -> ((HourlySalaryEmployee) memberToUpdate).setHourWorked(Integer.parseInt(value)));
+                } else {
+                    System.out.println(RED + "Hour update not applicable for this type." + RESET);
+                }
+                break;
+            case "5": // Update Rate (only for HourlySalaryEmployee)
+                if (memberToUpdate instanceof HourlySalaryEmployee) {
+                    updateField(memberToUpdate, "rate", "^(?:[0-9]|[1-9][0-9]{0,2})(?:\\.[0-9]{1,2})?$",
+                            "Change Rate To : ", RED + "Rate must be between 0.01 and 999.99" + RESET,
+                            value -> {
+                                double rate = Double.parseDouble(value);
+                                if (rate >= 0.01 && rate <= 999.99) {
+                                    ((HourlySalaryEmployee) memberToUpdate).setRate(rate);
+                                } else {
+                                    System.out.println(RED + "Rate must be between 0.01 and 999.99" + RESET);
+                                }
+                            });
+                } else {
+                    System.out.println(RED + "Rate update not applicable for this type." + RESET);
+                }
+                break;
+            case "0":
+                System.out.println("Update cancelled.");
+                return;
+
+            default:
+                System.out.println(RED + "Invalid column number!" + RESET);
+                return;
+        }
+        displayStaffMember(memberToUpdate);
+
+    }
+
+    // method updateFiled
+    public static void  updateField(StaffMember member, String fieldName,String regex,String prom,String errors,java.util.function.Consumer<String> setter){
+        System.out.print(prom);
+        String input =scan.nextLine().trim();
+        if(!input.isEmpty()){
+            if(Pattern.matches(regex,input)){
+                setter.accept(input);
+                System.out.println(fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1) + " updated successfully to: " + input);
+            }else{
+                System.out.println(errors);
+            }
+        }else{
+            System.out.println("No changes made.");
+        }
+
+    }
+
+    // Method display data went we find id
+    public static void displayStaffMember(StaffMember staff){
+        if(staff==null){
+            System.out.println(RED+"No staff member to found ??"+RESET);
+        }
+
+        Table t = new Table(6, BorderStyle.UNICODE_BOX_DOUBLE_BORDER, ShownBorders.ALL);
+        t.setColumnWidth(0, 25, 25);
+        t.setColumnWidth(1, 25, 25);
+        t.setColumnWidth(2, 25, 25);
+        t.setColumnWidth(3, 25, 25);
+        t.setColumnWidth(4, 25, 25);
+        t.setColumnWidth(5, 25, 25);
+        t.addCell("Type", new CellStyle(CellStyle.HorizontalAlign.center));
+        t.addCell("ID", new CellStyle(CellStyle.HorizontalAlign.center));
+        t.addCell("Name", new CellStyle(CellStyle.HorizontalAlign.center));
+        t.addCell("Address", new CellStyle(CellStyle.HorizontalAlign.center));
+        t.addCell("Salary", new CellStyle(CellStyle.HorizontalAlign.center));
+        t.addCell("Pay", new CellStyle(CellStyle.HorizontalAlign.center));
+
+        t.addCell(staff.getClass().getSimpleName(),new CellStyle(CellStyle.HorizontalAlign.center));
+        t.addCell(String.valueOf(staff.getId()),new CellStyle(CellStyle.HorizontalAlign.center));
+        t.addCell(staff.getName() != null ? staff.getName() : "N/A",new CellStyle(CellStyle.HorizontalAlign.center));
+        t.addCell(staff.getAddress() != null ? staff.getAddress() : "N/A",new CellStyle(CellStyle.HorizontalAlign.center));
+        if (staff instanceof Volunteer) {
+            t.addCell(String.format("$%.2f", ((Volunteer) staff).getSalary()),new CellStyle(CellStyle.HorizontalAlign.center));
+            t.addCell(String.format("$%.2f", staff.pay()),new CellStyle(CellStyle.HorizontalAlign.center));
+        }else if( staff instanceof  SalariesEmployee){
+            t.addCell(String.format("$%.2f", ((SalariesEmployee) staff).getSalary()),new CellStyle(CellStyle.HorizontalAlign.center));
+            t.addCell(String.format("$%.2f", staff.pay()),new CellStyle(CellStyle.HorizontalAlign.center));
+        } else if (staff instanceof HourlySalaryEmployee) {
+            t.addCell("---",new CellStyle(CellStyle.HorizontalAlign.center));
+            t.addCell(String.format("$%.2f", staff.pay()),new CellStyle(CellStyle.HorizontalAlign.center));
+        }
+
+        System.out.println(t.render());
+
+    }
+
+    // method Deleted
     public static void deleteFiled(ArrayList<StaffMember> staffMembers) {
         if (staffMembers == null || staffMembers.isEmpty()) {
             System.out.println(RED + "No staff members found to delete" + RESET);
@@ -221,169 +323,7 @@ public class Display {
 
     }
 
-    // update Method
-    public static void updateFiled(ArrayList<StaffMember> staffMembers, String field) {
-        if (staffMembers == null || staffMembers.isEmpty()) {
-            System.out.println(RED + "No staff numbers found to update " + RESET);
-            return;
-        }
-        System.out.print("=> Enter the ID of the staff member to update: ");
-        int targetId;
-        try {
-            targetId = Integer.parseInt(scan.nextLine().trim());
-        } catch (NumberFormatException e) {
-            System.out.println(RED + "Invalid ID! Please enter a valid integer." + RESET);
-            return;
-        }
-        StaffMember memberToUpdate = searchById(staffMembers, targetId, null);
-        if (memberToUpdate == null) {
-            System.out.println(RED + "No staff member found with ID: " + targetId + RESET);
-            return;
-        }
-        switch (field.toLowerCase()) {
-            case "name":
-                System.out.println("Current name: " + memberToUpdate.getName());
-                System.out.print(" => Enter new name :");
-                String newName = scan.nextLine().trim();
-                if (!newName.isEmpty()) {
-                    String nameRegex = "^[a-zA-Z\\s'-]{2,50}$";
-                    if (newName.matches(nameRegex)) {
-                        memberToUpdate.setName(newName);
-                        System.out.println("Name updated successfully to : " + memberToUpdate.getName());
-
-                    } else {
-                        System.out.println(RED + "Invalid name! Use only letters, spaces, hyphens, or apostrophes (2-50 characters)" + RESET);
-                    }
-                } else {
-                    System.out.println("No changes made.");
-                }
-
-                break;
-            case "address":
-                System.out.print(" => Please enter new address :");
-                String newAddress = scan.nextLine();
-                if (!newAddress.isEmpty()) {
-                    String addressRegex = "^[a-zA-Z\\s'-]{2,50}$";
-                    if (newAddress.matches(addressRegex)) {
-                        memberToUpdate.setAddress(newAddress);
-                        System.out.println("Address updated successfully to : " + memberToUpdate.getAddress());
-                    } else {
-                        System.out.println(RED + "Invalid address! Use only letters, spaces, hyphens, or apostrophes (2-50 characters)" + RESET);
-                    }
-                } else {
-                    System.out.println("No changes made.");
-                }
-                break;
-
-            case "salary":
-                if (memberToUpdate instanceof SalariesEmployee || memberToUpdate instanceof Volunteer) {
-
-                        double currentSalary = (memberToUpdate instanceof Volunteer)
-                                ? ((Volunteer) memberToUpdate).getSalary()
-                                : ((SalariesEmployee) memberToUpdate).getSalary();
-                        System.out.println("Current Salary :" + currentSalary);
-                        System.out.print("=> Enter new salary :");
-                        String newSalaryStr = scan.nextLine();
-                        if (!newSalaryStr.isEmpty()) {
-                            if (newSalaryStr.matches(SALARY_REGEX)) {
-                                double newSalary = Double.parseDouble(newSalaryStr);
-                                if (newSalary > 200 && newSalary <= 10000000) {
-                                    if (memberToUpdate instanceof Volunteer) {
-                                        ((Volunteer) memberToUpdate).setSalary(newSalary);
-                                    } else {
-                                        ((SalariesEmployee) memberToUpdate).setSalary(newSalary);
-
-                                    }
-                                    System.out.println("Salary updated successfully to: " + newSalary);
-                                    break;
-                                } else {
-                                    System.out.println(RED + "Salary must be between $200 and $10,000,000" + RESET);
-                                }
-                            } else {
-                                System.out.println(RED + "Invalid salary format!" + RESET);
-                            }
-                        } else {
-                            System.out.println("No changes made.");
-                        }
-                }
-                break;
-
-            case "bonus":
-                if (memberToUpdate instanceof SalariesEmployee) {
-                    System.out.println(((SalariesEmployee) memberToUpdate).getBonus());
-                    System.out.print(" => Enter new bonus :");
-                    String newBonusStr = scan.nextLine().trim();
-                    if (!newBonusStr.isEmpty()) {
-                        if (newBonusStr.matches(BONUS_REGEX)) {
-                            double newBonus = Double.parseDouble(newBonusStr);
-                            if (newBonus > 0 && newBonus <= 999999.0) {
-                                ((SalariesEmployee) memberToUpdate).setBonus(newBonus);
-                                System.out.println("Bonus updated successfully to: " + newBonus);
-                            } else {
-                                System.out.println(RED + "Bonus must be between 0 and 999999.99" + RESET);
-                            }
-                        } else {
-                            System.out.println(RED + "Invalid bonus format!" + RESET);
-                        }
-
-                    } else {
-                        System.out.println("No changes made.");
-                    }
-
-                } else {
-                    System.out.println(RED + "Bonus update not applicable for this type." + RESET);
-                }
-                break;
-
-            case "hour":
-                if (memberToUpdate instanceof HourlySalaryEmployee) {
-                    System.out.println(" Current Hour :" + ((HourlySalaryEmployee) memberToUpdate).getHour());
-                    System.out.print("=> Enter new hour :");
-                    String newHourStr = scan.nextLine().trim();
-                    if (!newHourStr.isEmpty()) {
-                        if (newHourStr.matches(HOUR_REGEX)) {
-                            int newHour = Integer.parseInt(newHourStr);
-                            ((HourlySalaryEmployee) memberToUpdate).setHourWorked(newHour);
-                            System.out.println("Hours updated successfully to: " + newHour);
-                        } else {
-                            System.out.println(RED + "Invalid hours! Must be between 0 and 168" + RESET);
-                        }
-                    } else {
-                        System.out.println("No changes made.");
-                    }
-
-                } else {
-                    System.out.println(RED + "Hour update not applicable for this type." + RESET);
-                }
-                break;
-
-            case "rate":
-                if (memberToUpdate instanceof HourlySalaryEmployee) {
-                    System.out.println("Current Rate :" + ((HourlySalaryEmployee) memberToUpdate).getRate());
-                    System.out.print("=> Enter new rate :");
-                    String newRateStr = scan.nextLine();
-                    if (!newRateStr.isEmpty()) {
-                        if (newRateStr.matches(RATE_REGEX)) {
-                            int newRate = Integer.parseInt(newRateStr);
-                            if (newRate > 0 && newRate < 900000.0) {
-                                ((HourlySalaryEmployee) memberToUpdate).setRate(newRate);
-                                System.out.println("Rate updated successfully to: " + newRate);
-                            }
-                        } else {
-                            System.out.println(RED + "Rate must be between 0.01 and 999.99" + RESET);
-                        }
-                    } else {
-                        System.out.println(RED + "Invalid rate! Must be between 0 and 168" + RESET);
-                    }
-                } else {
-                    System.out.println("No changes made.");
-                }
-                break;
-            default:
-                System.out.println(RED + "Invalid field selection!" + RESET);
-        }
-    }
-
+    // method insert
     public static void insertEmployee(ArrayList<StaffMember> staffMembers) {
         var condition = true;
         do {
@@ -426,6 +366,7 @@ public class Display {
         } while (condition);
     }
 
+    //method displayVo
     public static void displayVolunteer(ArrayList<StaffMember> staffMembers) {
         String name;
         String address;
@@ -496,6 +437,7 @@ public class Display {
         System.out.println("* You added " + name + " of type " + volunteer.getClass().getName() + " Successfully!");
     }
 
+    //method displaySalary
     public static void displaySalaryEmployee(ArrayList<StaffMember> staffMembers) {
         String nameSalariesEmployee;
         String addressSalariesEmployee;
@@ -602,6 +544,7 @@ public class Display {
 
     }
 
+    //method displayHour
     public static void displayHourlyEmployee(ArrayList<StaffMember> staffMembers) {
         String nameHourly;
         String addressHourly;
@@ -630,6 +573,7 @@ public class Display {
                 System.out.println("Error :" + e.getMessage());
             }
         }
+
         // valid address
         while (true) {
             try {
@@ -692,6 +636,7 @@ public class Display {
         staffMembers.add(hourlySalaryEmployee);
     }
 
+    // Method rate
     public static boolean isValidRate(String rate) {
         String rateRegex = "^(?:[0-9]|[1-9][0-9]{0,2})(?:\\.[0-9]{1,2})?$";
         Pattern pattern = Pattern.compile(rateRegex);
@@ -703,6 +648,5 @@ public class Display {
         }
         return false;
     }
-
 
 }
