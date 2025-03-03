@@ -4,6 +4,7 @@ import org.nocrala.tools.texttablefmt.ShownBorders;
 import org.nocrala.tools.texttablefmt.Table;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -231,9 +232,11 @@ public class Display {
                 System.out.println(RED + "Invalid column number!" + RESET);
                 return;
         }
+        System.out.println("Updated Data:");
         displayStaffMember(memberToUpdate);
 
     }
+
 
     // method updateFiled
     public static void  updateField(StaffMember member, String fieldName,String regex,String prom,String errors,java.util.function.Consumer<String> setter){
@@ -243,6 +246,7 @@ public class Display {
             if(Pattern.matches(regex,input)){
                 setter.accept(input);
                 System.out.println(fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1) + " updated successfully to: " + input);
+
             }else{
                 System.out.println(errors);
             }
@@ -307,11 +311,11 @@ public class Display {
         }
 
         StaffMember memberToDelete = searchById(staffMembers, targetId, null);
+        displayStaffMember(memberToDelete);
+
         if (memberToDelete == null) {
             return;
         }
-
-        System.out.println("Found: " + memberToDelete.toString());
         int sizeBefore = staffMembers.size();
         staffMembers.removeIf(staff -> staff.getId() == targetId);
         int sizeAfter = staffMembers.size();
@@ -419,6 +423,7 @@ public class Display {
             try {
                 System.out.print("=> Enter Salary :");
                 salary = scan.nextDouble();
+                scan.nextLine();
                 System.out.flush();
                 if (salary < 200 || salary > 10000000) {
                     throw new IllegalArgumentException(RED + "Salary must be between $2,00 and $10,000,000" + RESET);
@@ -616,6 +621,7 @@ public class Display {
             try {
                 System.out.print("=> Enter rate :");
                 rate = scan.nextDouble();
+                scan.nextLine();
                 String rateStr = String.valueOf(rate);
                 if (isValidRate(rateStr)) {
                     break;
